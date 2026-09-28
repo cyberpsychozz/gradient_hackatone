@@ -1,3 +1,17 @@
+  const auto& effect_zone = mechanics.at(state.body.position.x);
+  if (custom_biomes::is_custom_biome_id(effect_zone.biome_id)) {
+    MechanicBodyContext effect_ctx{};
+    effect_ctx.body_force = &body_force;
+    effect_ctx.body_torque = &body_torque;
+    effect_ctx.energy_cost = &stats.energy_cost;
+    effect_ctx.velocity = state.body.velocity;
+    effect_ctx.angular_velocity = state.body.angular_velocity;
+    effect_ctx.mass = state.body.mass;
+    effect_ctx.gravity = gravity;
+    effect_ctx.dt = dt;
+    effect_ctx.step_index = state.step_index;
+    biome_by_id(effect_zone.biome_id).apply_body_effects(effect_zone.params, effect_ctx);
+  }
   const auto rotate_body = [body_cos, body_sin](Vec2 v) {
     return Vec2{body_cos * v.x - body_sin * v.y, body_sin * v.x + body_cos * v.y};
   };

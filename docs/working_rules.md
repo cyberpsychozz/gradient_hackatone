@@ -13,5 +13,5 @@
 - [run_rules.md](run_rules.md) — формат ZIP/ONNX и правила закрытого заезда.
 - [exploits.md](exploits.md) — подтверждённые находки и отдельно помеченные гипотезы.
 - [ideas.md](ideas.md) — идеи для экспериментов.
-- [worlds.md](worlds.md) — генерация трасс, 20 публичных биомов, грейды.
+- [worlds.md](worlds.md) — генерация трасс, 40 биомов, включая 20 добавленных тренировочных, грейды.
 - [agent_knowledge.md](agent_knowledge.md) и [Agent.md](Agent.md) — обзор структуры проекта.
