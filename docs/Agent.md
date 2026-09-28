@@ -1,6 +1,8 @@
 # Agent.md
 
 ## Overview
+Before changing training or simulation, read [working_rules.md](working_rules.md) and [run_rules.md](run_rules.md). World generation and biome profiles are in [worlds.md](worlds.md).
+
 This repository contains the "Mars Rover Public Environment," a comprehensive development suite for reinforcement learning. It includes a high-performance C++ physics engine, Python bindings (via pybind11), a Gymnasium-compatible environment, a GUI for visualization, and tools for package submission and biome testing.
 
 ## Core Components

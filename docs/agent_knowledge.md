@@ -1,9 +1,9 @@
 # Repository Map: Mars Rover Public Environment
 
 ## 📁 Root Directory
-- `Agent.md` - High-level overview for AI agents.
+- `docs/Agent.md` - High-level overview for AI agents.
 - `environment/` - The primary codebase containing the engine and environment.
-- `docs/` - (Planned/Created) Documentation and knowledge base.
+- `docs/` - Documentation, working rules, and biome profiles.
 
 ---
 
