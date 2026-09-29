@@ -45,7 +45,8 @@ class Policy(nn.Module):
             trial_progress.unsqueeze(-1),
         ), dim=-1)
         memory = self.memory(self.encoder(features), memory)
-        return self.actor(memory) + self.action_bias, self.critic(memory).squeeze(-1), memory
+        logits = (self.actor(memory) + self.action_bias).clamp(-1.0e4, 1.0e4)
+        return logits, self.critic(memory).squeeze(-1), memory
 
     def forward(self, observation, previous_action, previous_reward, previous_done,
                 trial_progress, trial_start, memory):

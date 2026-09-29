@@ -202,11 +202,9 @@
               : 0.0f;
       ctx.wheel_speed = dot(wheel.velocity, contact.tangent);
       ctx.step_index = state.step_index;
-      // The original physics does not dispatch Biome callbacks. Enable them only
-      // for the appended training worlds to preserve the public bank dynamics.
-      if (custom_biomes::is_custom_biome_id(wheel_zone.biome_id)) {
-        biome_by_id(wheel_zone.biome_id).apply_effects(wheel_zone.params, ctx);
-      }
+      // Dispatch Biome callbacks for every biome so training matches the
+      // closed evaluation build (sand sinking, mud viscosity, phase worlds).
+      biome_by_id(wheel_zone.biome_id).apply_effects(wheel_zone.params, ctx);
       const float traction_limit = std::max(ctx.minimum_drive_limit,
                                             contact.normal_force * ctx.base_friction);
       const float limit = std::min(traction_limit,

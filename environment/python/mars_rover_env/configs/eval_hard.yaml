@@ -1,13 +1,9 @@
-env:
+﻿env:
   episodes_per_trial: 8
 
   biome_split: 1
   fixed_biome_id: -1
   debug: false
-
-
-
-
 
   chain_biomes: true
   chain_zone_count: 14
@@ -31,7 +27,7 @@ terrain:
   length: 30.0
   safe_start_fraction: 0.0
   difficulty_exponent: 0.5
-  difficulty_distance_offset: 5000.0
+  difficulty_distance_offset: 15000.0
 
 physics:
   dt: 0.016666667
@@ -58,17 +54,8 @@ physics:
   engine_heater_energy_rate: 0.15
   engine_heater_heat: 42.0
 
-
-
-
-
-
-
   initial_energy: 100.0
   energy_capacity: 130.0
-
-
-
 
   panel_deploy_time: 1.0
   panel_retract_time: 0.5
@@ -87,18 +74,11 @@ physics:
   fatal_landing_flip_angle: 2.35
 
 termination:
-
-
-
-
-
-
   finish_x: 0.0
   max_steps: 18000
   trial_time_limit: 300.0
   flip_angle: 2.2
   min_energy: 0.0
-
 
   stuck_steps: 600
   fatal_fall_y: -8.0
@@ -107,14 +87,8 @@ reward:
   progress_scale: 1.0
   energy_cost_scale: 0.01
 
-
-
-
-
-
-
-
   flip_penalty: 5.0
   stuck_penalty: 0.05
   hard_contact_penalty: 0.2
   finish_bonus: 0.0
+

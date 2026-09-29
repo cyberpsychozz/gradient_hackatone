@@ -36,10 +36,13 @@ make submission
 
 ## Обучение агента
 
-`train.py` содержит рекуррентный PPO: 64 параллельных мира, выбор одной из
+`train.py` содержит рекуррентный PPO: 128 параллельных миров, выбор одной из
 31 команд на каждые 8 шагов физики, оценка преимуществ GAE и обновление
-нейросети. Нужны PyTorch и ONNX. На сервере конкурса эти пакеты есть в
-`arena-base`; локально их нужно установить отдельно.
+нейросети. Тренировочное распределение (`configs/env.yaml`) сдвинуто к
+закрытой проверке: сложность растёт с первых метров трассы, цепочки зон и
+слои механик берутся из полного пула из 40 биомов. Нужны PyTorch и ONNX.
+На сервере конкурса эти пакеты есть в `arena-base`; локально их нужно
+установить отдельно.
 
 ```bash
 python -m pip install torch onnx onnxruntime
@@ -51,7 +54,7 @@ python train.py
 в `artifacts/latest.pt`. Для быстрой проверки полного цикла можно запустить:
 
 ```bash
-python train.py --total-frames 1024 --num-envs 4 --rollout-steps 4 --epochs 1 --save-every 1
+python train.py --total-frames 1024 --num-envs 4 --rollout-steps 4 --epochs 1 --save-interval 1
 python check_policy.py artifacts/policy.onnx
 ```
 

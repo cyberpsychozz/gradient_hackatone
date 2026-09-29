@@ -1,5 +1,5 @@
   const auto& effect_zone = mechanics.at(state.body.position.x);
-  if (custom_biomes::is_custom_biome_id(effect_zone.biome_id)) {
+  {
     MechanicBodyContext effect_ctx{};
     effect_ctx.body_force = &body_force;
     effect_ctx.body_torque = &body_torque;

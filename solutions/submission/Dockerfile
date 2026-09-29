@@ -1,3 +1,4 @@
+# SOLUTION NAME: dinastiya
 FROM arena-base
 
 LABEL org.opencontainers.image.version="0.16.0"
@@ -13,6 +14,7 @@ RUN command -v g++ >/dev/null 2>&1 && \
 RUN python -c "import pybind11" >/dev/null 2>&1 || \
     python -m pip install --no-cache-dir "pybind11==3.1.0"
 RUN python -m pip install --no-build-isolation --no-deps --force-reinstall /submission
+RUN python -m pip install --no-cache-dir "onnxruntime==1.21.0"
 RUN MARS_ROVER_REQUIRE_PLATFORM=1 python -m unittest discover -s /submission/tests -v
 
 USER 10000:10000
