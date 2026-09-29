@@ -39,8 +39,11 @@ def load_policy(path: Path):
     return session, memory_size
 
 
-def evaluate(session, memory_size, env, budget, macro, num_envs, base_seed):
-    obs = env.reset(int(base_seed)).copy().astype(np.float32)
+def evaluate(session, memory_size, env, budget, macro, seeds):
+    num_envs = len(seeds)
+    for env_id, seed in enumerate(seeds):
+        env.reset_at(env_id, seed=int(seed), trial_start=True)
+    obs = env.obs.copy().astype(np.float32)
     prev_a = np.zeros(num_envs, dtype=np.int64)
     prev_r = np.zeros(num_envs, dtype=np.float32)
     prev_d = np.zeros(num_envs, dtype=np.float32)
@@ -63,18 +66,23 @@ def evaluate(session, memory_size, env, budget, macro, num_envs, base_seed):
         })[0]
         action = np.argmax(logits, axis=1).astype(np.int64)
         controls = macro[action].copy()
+        controls[done] = 0
+        rewards = np.zeros(num_envs, dtype=np.float32)
+        decision_done = np.zeros(num_envs, dtype=bool)
         for _ in range(FRAME_SKIP):
             _, reward, terminated, truncated, _ = env.step_uint8(controls)
-            active = ~done
+            active = ~done & ~decision_done
+            rewards[active] += reward[active]
             steps[active] += 1
             best[active] = np.maximum(best[active], env.obs[active, 0] * 1000.0)
-            done |= terminated.astype(bool) | truncated.astype(bool)
+            decision_done |= terminated.astype(bool) | truncated.astype(bool)
+            done |= decision_done
             controls[done] = 0
             if done.all():
                 break
         prog = np.minimum(steps / budget, 1.0).astype(np.float32)
         prev_a = action
-        prev_r = reward
+        prev_r = rewards
         prev_d = done.astype(np.float32)
         obs = env.obs.copy().astype(np.float32)
     return np.maximum(best - 1.0, 0.0)
@@ -101,7 +109,7 @@ def main() -> None:
         for biome_id, world in enumerate(catalog):
             env = MarsRoverVecEnv(len(WORLD_SEEDS), fixed_biome_id=biome_id)
             distances = evaluate(
-                session, memory_size, env, budget, macro, len(WORLD_SEEDS), 42)
+                session, memory_size, env, budget, macro, WORLD_SEEDS)
             per_world[f"{biome_id}:{world['id']}"] = {
                 "median": float(np.median(distances)),
                 "max": float(distances.max()),
@@ -110,7 +118,7 @@ def main() -> None:
 
         chain_env = MarsRoverVecEnv(len(CHAIN_SEEDS))
         chain = evaluate(
-            session, memory_size, chain_env, budget, macro, len(CHAIN_SEEDS), 1)
+            session, memory_size, chain_env, budget, macro, CHAIN_SEEDS)
         per_world["chain"] = {
             "median": float(np.median(chain)),
             "max": float(chain.max()),

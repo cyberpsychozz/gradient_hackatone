@@ -90,7 +90,7 @@ def build_features(obs, prev_action, prev_reward, prev_done, progress,
     one_hot = torch.nn.functional.one_hot(
         torch.from_numpy(prev_action).to(device).long(), action_dim).float()
     return torch.cat((
-        torch.from_numpy(obs).to(device),
+        torch.from_numpy(obs).to(device).clamp(-10.0, 10.0),
         one_hot,
         torch.tanh(torch.from_numpy(prev_reward).to(device).unsqueeze(-1) / 10),
         torch.from_numpy(prev_done).to(device).unsqueeze(-1),
@@ -119,6 +119,7 @@ def evaluate(env, candidates, cfg, device, macro, budget, rng):
     progress = np.zeros(population, dtype=np.float32)
     steps = np.zeros(population, dtype=np.int32)
     best = obs[:, 0].copy() * 1000.0
+    done = np.zeros(population, dtype=bool)
 
     for _ in range(cfg.eval_steps):
         features = build_features(
@@ -128,32 +129,25 @@ def evaluate(env, candidates, cfg, device, macro, budget, rng):
         logits = torch.einsum("nd,ned->ne", features, weights) + biases
         action = logits.argmax(1).cpu().numpy()
         controls = macro[action].copy()
+        controls[done] = 0
         rewards = np.zeros(population, dtype=np.float32)
-        done = np.zeros(population, dtype=bool)
         for _ in range(cfg.frame_skip):
             _, step_reward, terminated, truncated, _ = env.step_uint8(controls)
             active = ~done
             rewards[active] += step_reward[active]
+            best[active] = np.maximum(best[active], env.obs[active, 0] * 1000.0)
             done |= terminated.astype(bool) | truncated.astype(bool)
             controls[done] = 0
             if done.all():
                 break
-        best = np.maximum(best, env.obs[:, 0] * 1000.0)
         prev_action = action
         prev_reward = rewards
         prev_done = done.astype(np.float32)
-        steps += cfg.frame_skip
+        steps[~done] += cfg.frame_skip
         progress = np.minimum(steps / budget, 1.0).astype(np.float32)
-        for i in np.flatnonzero(done):
-            env.reset_at(int(i), seed=int(rng.integers(0, 2**31)), trial_start=True)
-            obs_i = env.obs[i]
-            prev_action[i] = 0
-            prev_reward[i] = 0.0
-            prev_done[i] = 0.0
-            steps[i] = 0
-            progress[i] = 0.0
-            best[i] = obs_i[0] * 1000.0
         obs = env.obs.copy()
+        if done.all():
+            break
     return np.maximum(best - 1.0, 0.0)
 
 
