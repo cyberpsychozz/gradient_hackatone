@@ -2,3 +2,6 @@
 __pycache__/
 artifacts/
 solutions/*.zip
+/solutions/rover_best_v1/build/
+/solutions/rover_best_v1/python/*.egg-info/
+/message.txt
