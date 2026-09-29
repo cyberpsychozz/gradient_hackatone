@@ -14,7 +14,7 @@ def create_environment(args):
     return MarsRoverEnv(
         config_path=args.config,
         rig_path=args.rig,
-        biome_split=1,
+        biome_split=None if args.config else 1,
         fixed_biome_id=args.biome_index if args.biome_index is not None else -1,
         render_mode="debug_rgb_array" if args.debug else "rgb_array",
         render_width=args.render_width,

@@ -33,7 +33,7 @@ class StudentProfileTests(unittest.TestCase):
     def test_catalog_excludes_non_public_split(self):
         self.assertEqual([item["id"] for item in self.profile.visible_catalog()], ["anchor", "training"])
 
-    def test_environment_overrides_split_and_unset_fixed_id(self):
+    def test_explicit_config_preserves_split_and_unset_fixed_id(self):
         args = types.SimpleNamespace(
             config="custom.yaml",
             rig="rig.yaml",
@@ -43,7 +43,7 @@ class StudentProfileTests(unittest.TestCase):
             render_height=360,
         )
         self.profile.create_environment(args)
-        self.assertEqual(FakeEnvironment.last_kwargs["biome_split"], 1)
+        self.assertIsNone(FakeEnvironment.last_kwargs["biome_split"])
         self.assertEqual(FakeEnvironment.last_kwargs["fixed_biome_id"], -1)
 
     def test_selected_visible_id_is_preserved(self):
@@ -56,6 +56,7 @@ class StudentProfileTests(unittest.TestCase):
             render_height=450,
         )
         self.profile.create_environment(args)
+        self.assertEqual(FakeEnvironment.last_kwargs["biome_split"], 1)
         self.assertEqual(FakeEnvironment.last_kwargs["fixed_biome_id"], 7)
         self.assertEqual(FakeEnvironment.last_kwargs["render_mode"], "debug_rgb_array")
 

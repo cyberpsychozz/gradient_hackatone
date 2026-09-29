@@ -6,6 +6,7 @@ import time
 
 from .controls import HELD_CONTROLS, PULSE_CONTROLS, PULSE_KEYS, keyboard_action
 from .hud import telemetry_lines
+from .policy import PolicyController
 from .student_profile import create_environment, visible_catalog
 
 
@@ -16,7 +17,7 @@ class StudentPlayer:
         from PIL import Image, ImageTk
 
         self.root = tk.Tk()
-        self.root.title("Mars Rover Manual Control")
+        self.root.title("Mars Rover Policy Playback" if args.policy else "Mars Rover Manual Control")
         self.fullscreen = bool(args.fullscreen)
         self.sidebar_width = 500
         if self.fullscreen:
@@ -27,8 +28,10 @@ class StudentPlayer:
             args.render_width = args.width
             args.render_height = args.height
         self.env = create_environment(args)
+        self.policy = PolicyController(args.policy, self.env._trial_time_limit) if args.policy else None
         self.seed = args.seed
-        self.env.reset(seed=self.seed)
+        self.observation, _ = self.env.reset(seed=self.seed)
+        self.ended = False
         self.frame_ms = max(1, round(1000 / max(1, args.fps)))
         self.last_frame_time = time.perf_counter()
         self.fps = 0.0
@@ -167,7 +170,10 @@ class StudentPlayer:
         self.keys.clear()
         self.mouse_action = 0
         self.pulse_action = 0
-        self.env.reset(seed=self.seed, options={"trial_start": False})
+        self.observation, _ = self.env.reset(seed=self.seed, options={"trial_start": bool(self.policy)})
+        if self.policy:
+            self.policy.reset()
+        self.ended = False
         self.notice = f"RESET seed={self.seed}"
 
     def _new_track(self) -> None:
@@ -175,7 +181,10 @@ class StudentPlayer:
         self.keys.clear()
         self.mouse_action = 0
         self.pulse_action = 0
-        self.env.reset(seed=self.seed, options={"trial_start": True})
+        self.observation, _ = self.env.reset(seed=self.seed, options={"trial_start": True})
+        if self.policy:
+            self.policy.reset()
+        self.ended = False
         self.notice = f"NEW WORLD seed={self.seed}"
 
     def _tick(self) -> None:
@@ -185,19 +194,31 @@ class StudentPlayer:
         if elapsed > 0.0:
             instant = 1.0 / elapsed
             self.fps = instant if self.fps == 0.0 else self.fps * 0.9 + instant * 0.1
-        self.current_action = keyboard_action(self.keys) | self.mouse_action | self.pulse_action
-        _, reward, terminated, truncated, _ = self.env.step(self.current_action)
-        self.last_reward = reward
+        if self.policy:
+            if not self.ended:
+                self.current_action = self.policy.action(self.observation)
+                self.observation, reward, terminated, truncated, _ = self.env.step(self.current_action)
+                self.policy.observe(reward)
+                self.last_reward = reward
+                if terminated or truncated:
+                    self.ended = True
+                    reason = self.env.debug_info().get("termination_reason", 0)
+                    self.notice = f"RUN ENDED reason={reason}  R OR T TO CONTINUE"
+        else:
+            self.current_action = keyboard_action(self.keys) | self.mouse_action | self.pulse_action
+            self.observation, reward, terminated, truncated, _ = self.env.step(self.current_action)
+            self.last_reward = reward
+            if terminated or truncated:
+                reason = self.env.debug_info().get("termination_reason", 0)
+                self.notice = f"RUN ENDED reason={reason}  R OR T TO CONTINUE"
         self.pulse_action = 0
         debug = self.env.debug_info()
-        if terminated or truncated:
-            reason = debug.get("termination_reason", 0)
-            self.notice = f"RUN ENDED reason={reason}  R OR T TO CONTINUE"
         frame = self.env.render()
         self.photo = ImageTk.PhotoImage(Image.fromarray(frame))
         self.canvas.configure(image=self.photo)
         self.telemetry.configure(text="\n".join(telemetry_lines(debug, self.fps, self.seed)))
-        self.status.configure(text=f"reward={self.last_reward:.3f}   {self.notice}")
+        action_text = f"action={self.policy.action_index}   " if self.policy else ""
+        self.status.configure(text=f"{action_text}reward={self.last_reward:.3f}   {self.notice}")
         self._update_buttons(debug)
         self.root.after(self.frame_ms, self._tick)
 
@@ -242,6 +263,7 @@ def main() -> None:
     parser.add_argument("--fullscreen", action="store_true")
     parser.add_argument("--fps", type=int, default=60)
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--policy", help="path to an exported ONNX policy")
     args = parser.parse_args()
     catalog = visible_catalog()
     if args.list_biomes:
