@@ -27,6 +27,7 @@ def export_policy(model: DQN, path: Path) -> None:
             raise
         # The local environment lacks arena-base. The server uses its validator.
         import onnx
+        from onnx import TensorProto, helper as onnx_helper
 
         n = 2
         example = (
@@ -44,6 +45,28 @@ def export_policy(model: DQN, path: Path) -> None:
             dynamic_axes={name: {0: "batch"} for name in (*inputs, "logits", "next_memory")},
         )
         graph = onnx.load(str(path))
+
+        def ensure_contract_inputs(graph) -> None:
+            expected = (
+                "observation", "previous_action", "previous_reward", "previous_done",
+                "trial_progress", "trial_start", "memory",
+            )
+            existing = {item.name for item in graph.graph.input}
+            if existing == set(expected):
+                return
+            dtypes = {"previous_action": TensorProto.INT64}
+            by_name = {item.name: item for item in graph.graph.input}
+            for name in expected:
+                if name not in existing:
+                    value_info = onnx_helper.make_tensor_value_info(
+                        name, dtypes.get(name, TensorProto.FLOAT), None)
+                    value_info.type.tensor_type.shape.dim.add().dim_param = "batch"
+                    by_name[name] = value_info
+            del graph.graph.input[:]
+            for name in expected:
+                graph.graph.input.append(by_name[name])
+
+        ensure_contract_inputs(graph)
         entry = graph.metadata_props.add()
         entry.key, entry.value = "rover.format", "rover-policy-onnx-v1"
         onnx.checker.check_model(graph)
@@ -255,13 +278,18 @@ def main():
                 next_prev_reward[i] = 0.0
                 next_prev_done[i] = 0.0
 
-            buffer.push(
-                ctx["obs"], ctx["prev_action"].cpu().numpy(),
-                ctx["prev_reward"].cpu().numpy(), ctx["prev_done"].cpu().numpy(),
-                ctx["progress"].cpu().numpy(), actions, rewards, done,
-                next_obs, next_prev_action, next_prev_reward, next_prev_done,
-                next_progress,
-            )
+            obs_np = ctx["obs"].cpu().numpy()
+            prev_action_np = ctx["prev_action"].cpu().numpy()
+            prev_reward_np = ctx["prev_reward"].cpu().numpy()
+            prev_done_np = ctx["prev_done"].cpu().numpy()
+            progress_np = ctx["progress"].cpu().numpy()
+            for i in range(args.num_envs):
+                buffer.push(
+                    obs_np[i], prev_action_np[i], prev_reward_np[i],
+                    prev_done_np[i], progress_np[i], actions[i], rewards[i],
+                    done[i], next_obs[i], next_prev_action[i],
+                    next_prev_reward[i], next_prev_done[i], next_progress[i],
+                )
             ctx = {
                 "obs": torch.from_numpy(next_obs).to(device),
                 "prev_action": torch.from_numpy(next_prev_action).to(device),

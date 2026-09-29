@@ -10,6 +10,15 @@ EXPECTED_INPUTS = (
 EXPECTED_OUTPUTS = ("logits", "next_memory")
 FORMAT_KEY = "rover.format"
 FORMAT_VALUE = "rover-policy-onnx-v1"
+ALLOWED_OPS = frozenset(
+    "Abs Add And ArgMax BatchNormalization Cast Ceil Clip Concat Constant Conv Div "
+    "Elu Equal Erf Exp Flatten Floor Gather GatherElements GatherND Gemm "
+    "GlobalAveragePool Greater GreaterOrEqual GRU HardSigmoid Identity "
+    "LayerNormalization LeakyRelu Less LessOrEqual LSTM MatMul Max MaxPool Mean Min "
+    "Mod Mul Neg Not OneHot Pad Pow Reciprocal ReduceMax ReduceMean ReduceMin "
+    "ReduceSum Relu Reshape Shape Sigmoid Sign Slice Softmax Split Sqrt Squeeze Sub "
+    "Tanh Transpose Unsqueeze Where".split()
+)
 
 
 def validate_policy(path: Path) -> None:
@@ -36,6 +45,13 @@ def validate_policy(path: Path) -> None:
             memory_size = shape.dim[1].dim_value if len(shape.dim) > 1 else 0
     if memory_size < 1:
         raise RuntimeError("ONNX memory input has an invalid size")
+
+    nodes = list(graph.graph.node)
+    if not 1 <= len(nodes) <= 1024:
+        raise RuntimeError(f"ONNX graph has {len(nodes)} nodes (limit is 1024)")
+    for node in nodes:
+        if node.op_type not in ALLOWED_OPS:
+            raise RuntimeError(f"ONNX operation {node.op_type} is not allowed")
 
     onnx.checker.check_model(graph)
 

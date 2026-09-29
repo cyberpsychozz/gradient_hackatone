@@ -55,7 +55,7 @@ class Reinforce(nn.Module):
              trial_progress, trial_start, memory):
         logits, value = self.evaluate(
             observation, previous_action, previous_reward, previous_done, trial_progress)
-        next_memory = torch.zeros_like(memory)
+        next_memory = memory * 0.0
         return logits, value, next_memory
 
     def forward(self, observation, previous_action, previous_reward, previous_done,

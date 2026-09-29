@@ -50,7 +50,7 @@ class A2C(nn.Module):
         hidden = self.encoder(features)
         logits = self.actor(hidden)
         value = self.critic(hidden).squeeze(-1)
-        next_memory = torch.zeros_like(memory)
+        next_memory = memory * 0.0
         return logits, value, next_memory
 
     def forward(self, observation, previous_action, previous_reward, previous_done,

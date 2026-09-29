@@ -47,7 +47,7 @@ class DQN(nn.Module):
 
     def forward(self, observation, previous_action, previous_reward, previous_done,
                 trial_progress, trial_start, memory):
-        next_memory = torch.zeros_like(memory)
+        next_memory = memory * 0.0
         logits = self.q_values(
             observation, previous_action, previous_reward, previous_done, trial_progress)
         return logits, next_memory

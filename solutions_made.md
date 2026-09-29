@@ -31,3 +31,17 @@
   `mars_rover_env 0.16.0`; Dockerfile только копирует файлы и гоняет smoke-тесты.
 - Метрика качества — медиана максимальной дистанции на фиксированных сидах (`docs/run_rules.md`),
   а не суммарная награда обучения.
+
+## Локальная проверка (2026-09-29)
+
+Прогнано на CPU (venv: torch 2.14+cpu, onnx 1.23, onnxruntime 1.30, native `.so` из `environment/`):
+
+- Все smoke-тесты (`export + validate_policy` с onnxruntime) проходят для всех решений.
+- Найдено и исправлено при локальном прогоне:
+  - torch.onnx.export выбрасывает неиспользуемый вход `trial_start` → добавлен
+    `ensure_contract_inputs()` в fallback-экспорт (dqn/a2c/reinforce/cem);
+  - dqn_v1: `ReplayBuffer.push` получал батч вместо одной записи;
+  - cem_v1: кандидаты в float64, тензоры требуют float32;
+  - reinforce_v1: `KeyError 'reward'` → `len(episode["returns"])`.
+- Короткие заезды обучения (8 сред, ~2M фреймов): DQN медиана 170–210 м, REINFORCE ~60–70 м,
+  CEM best ~160 м (на частичных заездах). Это sanity-check, не итоговая оценка.

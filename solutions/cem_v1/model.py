@@ -33,5 +33,5 @@ class LinearPolicy(nn.Module):
                 trial_progress, trial_start, memory):
         logits = self.linear(self.features(
             observation, previous_action, previous_reward, previous_done, trial_progress))
-        next_memory = torch.zeros_like(memory)
+        next_memory = memory * 0.0
         return logits, next_memory

@@ -27,6 +27,7 @@ def export_policy(model: Reinforce, path: Path) -> None:
             raise
         # The local environment lacks arena-base. The server uses its validator.
         import onnx
+        from onnx import TensorProto, helper as onnx_helper
 
         n = 2
         example = (
@@ -44,6 +45,28 @@ def export_policy(model: Reinforce, path: Path) -> None:
             dynamic_axes={name: {0: "batch"} for name in (*inputs, "logits", "next_memory")},
         )
         graph = onnx.load(str(path))
+
+        def ensure_contract_inputs(graph) -> None:
+            expected = (
+                "observation", "previous_action", "previous_reward", "previous_done",
+                "trial_progress", "trial_start", "memory",
+            )
+            existing = {item.name for item in graph.graph.input}
+            if existing == set(expected):
+                return
+            dtypes = {"previous_action": TensorProto.INT64}
+            by_name = {item.name: item for item in graph.graph.input}
+            for name in expected:
+                if name not in existing:
+                    value_info = onnx_helper.make_tensor_value_info(
+                        name, dtypes.get(name, TensorProto.FLOAT), None)
+                    value_info.type.tensor_type.shape.dim.add().dim_param = "batch"
+                    by_name[name] = value_info
+            del graph.graph.input[:]
+            for name in expected:
+                graph.graph.input.append(by_name[name])
+
+        ensure_contract_inputs(graph)
         entry = graph.metadata_props.add()
         entry.key, entry.value = "rover.format", "rover-policy-onnx-v1"
         onnx.checker.check_model(graph)
@@ -192,7 +215,7 @@ def update_policy(policy, optimizer, episodes, cfg, device):
         entropy = distribution.entropy().mean()
         losses.append(actor_loss + cfg.value_coef * critic_loss - cfg.entropy_coef * entropy)
         entropy_sum += float(entropy)
-        steps += len(episode["reward"])
+        steps += len(episode["returns"])
     total_loss = torch.stack(losses).mean()
     optimizer.zero_grad(set_to_none=True)
     total_loss.backward()
