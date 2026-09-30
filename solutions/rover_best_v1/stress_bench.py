@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from world_profiles import PROFILES as WORLD_PROFILES
+
 
 HERE = Path(__file__).resolve().parent
 CONFIGS = HERE / "python" / "mars_rover_env" / "configs"
@@ -18,6 +20,7 @@ PROFILES = {
     "mixed": None,
     "dense": CONFIGS / "eval_stress_dense.yaml",
     "weather": CONFIGS / "eval_stress_weather.yaml",
+    **{profile.name: profile.name for profile in WORLD_PROFILES},
 }
 
 
@@ -51,6 +54,8 @@ def main():
                 config = PROFILES[profile]
                 if config is None:
                     cmd.extend(("--biome-split", "0"))
+                elif isinstance(config, str):
+                    cmd.extend(("--world-profile", config))
                 else:
                     cmd.extend(("--config", str(config)))
                 completed = subprocess.run(cmd, text=True, capture_output=True, check=True)

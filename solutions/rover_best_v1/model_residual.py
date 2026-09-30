@@ -37,6 +37,9 @@ class Policy(nn.Module):
     def initial(self, batch: int, device: torch.device) -> torch.Tensor:
         return torch.zeros(batch, self.hidden_size, device=device)
 
+    def value(self, features, memory):
+        return self.critic(memory).squeeze(-1)
+
     def step(self, observation, previous_action, previous_reward, previous_done,
              trial_progress, trial_start, memory):
         phase = memory[:, -1]
@@ -67,7 +70,7 @@ class Policy(nn.Module):
         scripted_logits = F.one_hot(scripted, self.action_dim).float() * 200.0 - 100.0
         scripted_step = ((phase < 2.5).float() + trial_start) > 0.5
         logits = torch.where(scripted_step.unsqueeze(-1), scripted_logits, logits)
-        return logits, self.critic(memory).squeeze(-1), memory
+        return logits, self.value(features, memory), memory
 
     def forward(self, observation, previous_action, previous_reward, previous_done,
                 trial_progress, trial_start, memory):

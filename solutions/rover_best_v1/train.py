@@ -1,12 +1,12 @@
 """Train a recurrent PPO rover policy with the public vector simulator.
 
-SOLUTION NAME: dinastiya
+SOLUTION NAME: rover_best_v1
 
-Training mixes standard worlds with dense-obstacle and adverse-weather
-cohorts at full difficulty from the start. Biome chains and layered
-mechanics are sampled over the full 40-biome pool, biome callbacks are
-dispatched for every biome (sand sinking, mud viscosity, phase worlds), and
-the model receives the 160-observation contract. Reward shaping below is
+Training mixes twenty-four terrain/weather archetypes across accessible,
+challenging and severe cohorts. The severe share is capped by default.
+Nonfixed worlds sample biome chains across the full 40-biome pool; fixed
+worlds force the matching physical layer. The model receives the
+160-observation contract. Reward shaping below is
 applied to the training copy only; the exported policy is evaluated on the
 organizer build.
 
@@ -36,8 +36,10 @@ from mars_rover_env.config import load_env_config
 
 SOLUTION_NAME = "rover_best_v1"
 from mixed_env import MixedVecEnv
-from model_residual import Policy
+from model_residual import Policy as SharedPolicy
+from model_separate_critic import Policy as SeparateCriticPolicy
 from rule_policy import RulePolicy
+from world_profiles import allocate_profiles, training_config
 
 
 def is_finite(model: torch.nn.Module) -> bool:
@@ -50,7 +52,7 @@ def is_finite(model: torch.nn.Module) -> bool:
     return True
 
 
-def export_policy(model: Policy, path: Path) -> bool:
+def export_policy(model: torch.nn.Module, path: Path) -> bool:
     path.parent.mkdir(parents=True, exist_ok=True)
     if not is_finite(model):
         print("WARNING: skipping export, model weights are not finite", flush=True)
@@ -157,7 +159,9 @@ def collect(env, policy, state, cfg, device, rng):
                 trial_start[i] = 1.0
             state["best"][i] = env.obs[i, 0] * 1000.0
 
-        data["reward"].append(torch.from_numpy(rewards).to(device))
+        # Scale returns for the critic while retaining raw previous_reward
+        # in the policy input and in the independent evaluator.
+        data["reward"].append(torch.from_numpy(rewards * cfg.return_scale).to(device))
         data["done"].append(torch.from_numpy(done.astype(np.float32)).to(device))
         state["obs"] = env.obs.copy()
         state["prev_action"] = action
@@ -220,7 +224,17 @@ def update_policy(policy, optimizer, batch, bootstrap, cfg, rng):
                 predicted_value - returns[:, ids]
             ).square().mean()
             entropy = distribution.entropy().mean()
-            loss = actor_loss + cfg.value_coef * critic_loss - cfg.entropy_coef * entropy
+            # A small policy regularizer discourages gratuitous deviations
+            # from the reliable drive/tilt controller on familiar observations.
+            angle = batch["obs"][:, ids, 4]
+            preferred = torch.where(angle > 0.1, 11,
+                                    torch.where(angle < -0.1, 10, 1))
+            rule_probability = distribution.probs.gather(
+                -1, preferred.unsqueeze(-1)).squeeze(-1)
+            non_scripted = (batch["action"][:, ids] != 13).float()
+            deviation = ((1.0 - rule_probability) * non_scripted).mean()
+            loss = (actor_loss + cfg.value_coef * critic_loss
+                    - cfg.entropy_coef * entropy + cfg.rule_coef * deviation)
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(policy.parameters(), cfg.max_grad_norm)
@@ -309,11 +323,23 @@ def save_checkpoint(path: Path, model_state, optimizer_state, frames: int) -> No
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--algorithm", choices=("shared_ppo", "separate_ppo"),
+                        default="shared_ppo")
     parser.add_argument("--total-frames", type=int, default=4_000_000_000)
     parser.add_argument("--num-envs", type=int, default=64)
     parser.add_argument("--rollout-steps", type=int, default=32)
     parser.add_argument("--frame-skip", type=int, default=8)
     parser.add_argument("--epochs", type=int, default=2)
+    parser.add_argument("--learning-rate", type=float, default=1.8e-4)
+    parser.add_argument("--final-learning-rate", type=float, default=7e-5)
+    parser.add_argument("--entropy-start", type=float, default=0.002)
+    parser.add_argument("--entropy-end", type=float, default=0.0005)
+    parser.add_argument("--rule-coef", type=float, default=0.02,
+                        help="Penalty for deviating from the drive/tilt controller.")
+    parser.add_argument("--return-scale", type=float, default=0.2,
+                        help="Scale PPO returns and value targets without changing policy inputs.")
+    parser.add_argument("--min-improvement-m", type=float, default=10.0,
+                        help="Minimum mixed-suite median gain required to replace the fallback.")
     parser.add_argument("--hidden-size", type=int, default=128)
     parser.add_argument("--extra-actions", type=str, default="",
                         help="Comma-separated macros to explore after the drive bootstrap, or 'all'.")
@@ -323,10 +349,12 @@ def main():
         os.environ.get("ARENA_SEED", "2026")))
     parser.add_argument("--max-seconds", type=int, default=6600)
     parser.add_argument("--save-interval", type=float, default=60.0)
-    parser.add_argument("--eval-interval", type=float, default=300.0)
+    parser.add_argument("--eval-interval", type=float, default=1200.0)
     parser.add_argument("--eval-envs", type=int, default=48)
     parser.add_argument("--stress-train-fraction", type=float, default=0.5,
-                        help="Fraction of parallel training worlds split between dense and weather profiles.")
+                        help="Total challenging + severe share of parallel worlds (default: 0.5).")
+    parser.add_argument("--severe-train-fraction", type=float, default=None,
+                        help="Severe share of all parallel worlds (default: 0.12).")
     parser.add_argument("--config", type=str, default="",
                         help="Optional path to a custom env.yaml (experiments).")
     parser.add_argument("--eval-hard-config", type=str, default="",
@@ -356,8 +384,15 @@ def main():
         parser.error("--extra-actions contains a macro outside 0..30")
     if not np.isfinite(args.extra_logit_bias) or args.extra_logit_bias > 0:
         parser.error("--extra-logit-bias must be finite and <= 0")
-    if not 0.0 <= args.stress_train_fraction < 1.0:
-        parser.error("--stress-train-fraction must be in [0, 1)")
+    if args.severe_train_fraction is None:
+        args.severe_train_fraction = min(0.12, args.stress_train_fraction)
+    if not 0.0 <= args.severe_train_fraction <= args.stress_train_fraction < 1.0:
+        parser.error("require 0 <= --severe-train-fraction <= --stress-train-fraction < 1")
+    if not (0 < args.final_learning_rate <= args.learning_rate and
+            0 <= args.entropy_end <= args.entropy_start and
+            args.rule_coef >= 0 and 0 < args.return_scale <= 1 and
+            args.min_improvement_m >= 0):
+        parser.error("invalid optimizer, entropy, rule, return scale, or improvement setting")
     if min(args.num_envs, args.rollout_steps, args.frame_skip, args.epochs,
            args.total_frames, args.max_seconds, args.hidden_size) <= 0:
         parser.error("all counts and durations must be positive")
@@ -378,34 +413,14 @@ def main():
     rng = np.random.default_rng(args.seed)
     device = torch.device("cpu")
 
-    def training_config(path):
-        config = load_env_config(path or None)
-        config.reward.energy_cost_scale = 0.025
-        config.reward.flip_penalty = 8.0
-        config.reward.hard_contact_penalty = 0.0  # original penalty repeats cumulative damage every frame
-        config.reward.stuck_penalty = 0.08
-        config.biome_split = 0  # mix every public biome and mechanism stack
-        return config
-
-    stress_total = min(args.num_envs - 1,
-                       round(args.num_envs * args.stress_train_fraction))
-    available_stress = [path for path in (args.eval_hard_config, args.eval_weather_config)
-                        if path]
-    if not available_stress:
-        stress_total = 0
-    stress_counts = [stress_total // len(available_stress)
-                     + (i < stress_total % len(available_stress))
-                     for i in range(len(available_stress))]
-    standard_count = args.num_envs - stress_total
-    cohorts = [MarsRoverVecEnv(standard_count,
-                              config_override=training_config(args.config))]
-    for path, count in zip(available_stress, stress_counts):
-        if count:
-            cohorts.append(MarsRoverVecEnv(
-                count, config_override=training_config(path)))
+    allocated = allocate_profiles(args.num_envs, args.stress_train_fraction,
+                                  args.severe_train_fraction)
+    cohorts = [MarsRoverVecEnv(count, config_override=training_config(profile, args.config))
+               for profile, count in allocated]
     env = MixedVecEnv(cohorts) if len(cohorts) > 1 else cohorts[0]
-    print(f"training cohorts: standard={standard_count} "
-          f"stress={dict(zip(available_stress, stress_counts))}", flush=True)
+    print("training worlds: " + ", ".join(
+        f"{profile.name}={count}[{profile.tier}]" for profile, count in allocated),
+        flush=True)
     if env.obs_dim != 160 or len(ACTION_MACROS) != 31:
         raise RuntimeError("The evaluator observation/action contract changed")
     eval_config = load_env_config(args.config or None)
@@ -423,12 +438,13 @@ def main():
         weather_env = MarsRoverVecEnv(
             max(8, args.eval_envs), config_path=args.eval_weather_config)
         print(f"weather stress eval env: {args.eval_weather_config}", flush=True)
-    policy = Policy(env.obs_dim, len(ACTION_MACROS), args.hidden_size,
+    policy_class = SharedPolicy if args.algorithm == "shared_ppo" else SeparateCriticPolicy
+    policy = policy_class(env.obs_dim, len(ACTION_MACROS), args.hidden_size,
                     extra_actions=extra_actions,
                     extra_logit_bias=args.extra_logit_bias).to(device)
     print(f"trainable macros={sorted({1, 10, 11, *extra_actions})} "
           f"extra_logit_bias={args.extra_logit_bias}", flush=True)
-    optimizer = torch.optim.Adam(policy.parameters(), lr=3e-4, eps=1e-5)
+    optimizer = torch.optim.Adam(policy.parameters(), lr=args.learning_rate, eps=1e-5)
     zeros = lambda: torch.zeros(args.num_envs, device=device)
     obs = env.reset(args.seed).copy()
     state = {
@@ -446,13 +462,14 @@ def main():
         num_envs=args.num_envs, rollout_steps=args.rollout_steps,
         frame_skip=args.frame_skip, epochs=args.epochs, envs_per_batch=32,
         gamma=0.995, gae_lambda=0.95, clip=0.2, value_coef=0.5,
-        entropy_coef=0.02, max_grad_norm=0.5,
+        entropy_coef=args.entropy_start, rule_coef=args.rule_coef,
+        return_scale=args.return_scale, max_grad_norm=0.5,
     )
     start = time.monotonic()
     frames = 0
     update = 0
     last_save = -1e9
-    last_eval = -1e9
+    last_eval = 0.0
     last_beat = -1e9
     rule_policy = RulePolicy()
     rule_stats = quick_eval(rule_policy, eval_env, eval_macro,
@@ -480,7 +497,8 @@ def main():
     recent_action_counts = np.zeros(len(ACTION_MACROS), dtype=np.int64)
     diagnostics_path = args.checkpoint.with_name("diagnostics.json")
     print(
-        f"SOLUTION={SOLUTION_NAME} seed={args.seed} hidden={args.hidden_size} "
+        f"SOLUTION={SOLUTION_NAME} algorithm={args.algorithm} "
+        f"seed={args.seed} hidden={args.hidden_size} "
         f"envs={args.num_envs} rollout={args.rollout_steps} skip={args.frame_skip} "
         f"epochs={args.epochs} max_seconds={args.max_seconds} "
         f"started={datetime.now(timezone.utc).isoformat(timespec='seconds')}",
@@ -492,9 +510,11 @@ def main():
     while frames < args.total_frames and time.monotonic() - start < args.max_seconds:
         elapsed = time.monotonic() - start
         progress = min(1.0, elapsed / max(1.0, float(args.max_seconds)))
-        cfg.entropy_coef = 0.005 - 0.004 * progress
+        cfg.entropy_coef = (args.entropy_start +
+                            (args.entropy_end - args.entropy_start) * progress)
         for group in optimizer.param_groups:
-            group["lr"] = 3e-4 - 2.0e-4 * progress
+            group["lr"] = (args.learning_rate +
+                           (args.final_learning_rate - args.learning_rate) * progress)
 
         batch, bootstrap, distances = collect(env, policy, state, cfg, device, rng)
         actor, critic, entropy = update_policy(
@@ -558,7 +578,8 @@ def main():
                     except Exception as exc:
                         hard_line += f" (weather eval failed: {exc})"
                 diagnostics.append(stats)
-                if selection_median > best_median and hard_acceptable and weather_acceptable:
+                if (selection_median >= best_median + args.min_improvement_m and
+                        hard_acceptable and weather_acceptable):
                     best_median = selection_median
                     best_frames = frames
                     best_state = copy.deepcopy(

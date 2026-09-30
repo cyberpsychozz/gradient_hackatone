@@ -16,9 +16,16 @@ from mars_rover_env.actions import ACTION_MACROS
 
 
 def evaluate(args):
-    env = MarsRoverVecEnv(args.runs, config_path=args.config or None,
-                          biome_split=args.biome_split,
-                          fixed_biome_id=args.biome_id)
+    if args.world_profile:
+        from world_profiles import PROFILES, training_config
+        profile = next((item for item in PROFILES if item.name == args.world_profile), None)
+        if profile is None:
+            raise ValueError(f"unknown world profile: {args.world_profile}")
+        env = MarsRoverVecEnv(args.runs, config_override=training_config(profile))
+    else:
+        env = MarsRoverVecEnv(args.runs, config_path=args.config or None,
+                              biome_split=args.biome_split,
+                              fixed_biome_id=args.biome_id)
     env.reset(args.seed)
     for i in range(args.runs):
         env.reset_at(i, seed=args.seed + i * 7919)
@@ -144,7 +151,8 @@ def evaluate(args):
     result = {
         "policy": str(args.policy) if args.policy else (f"auto_shift:{args.shift_threshold}:drive{args.drive_mode}" if args.auto_shift else f"constant:{args.constant_action}"),
         "runs": args.runs, "seed": args.seed, "biome_split": args.biome_split,
-        "biome_id": args.biome_id, "actions": int(counts.sum()),
+        "biome_id": args.biome_id, "world_profile": args.world_profile,
+        "actions": int(counts.sum()),
         "prefix_actions": args.prefix_actions,
         "solar_rescue_threshold": args.solar_rescue_threshold,
         "solar_cycles": int(panel_cycles.sum()),
@@ -188,6 +196,7 @@ def main():
     parser.add_argument("--config", type=str, default="")
     parser.add_argument("--biome-split", type=int, default=None)
     parser.add_argument("--biome-id", type=int, default=None)
+    parser.add_argument("--world-profile", type=str, default="")
     parser.add_argument("--frame-skip", type=int, default=8)
     parser.add_argument("--max-actions", type=int, default=2250)
     parser.add_argument("--trace-actions", action="store_true",
