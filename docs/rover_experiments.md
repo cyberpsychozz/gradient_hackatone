@@ -10,7 +10,7 @@ The training reward in the native engine subtracts `hard_contact_penalty × stat
 
 ## Local full-trial results
 
-Every number below is a median of **48 independent 300-second trials** from the exported ONNX or the matching scripted prototype. They are local proxies, not official hidden scores. The regular configuration uses the current public native environment with 40 biomes in its catalog and `biome_split=1`; the mixed configuration sets `biome_split=0` to sample all 40. The hard configuration uses the `dinasty` native build and a larger difficulty offset.
+Every number below is a median of **48 independent 300-second trials** from the exported ONNX or the matching scripted prototype. They are local proxies, not official hidden scores. The regular configuration uses the current local native environment with 40 biomes (20 original and 20 added training) in its catalog and `biome_split=1`; the mixed configuration sets `biome_split=0` to sample all 40. The hard configuration uses the `dinasty` native build and a larger difficulty offset.
 
 | Controller | Regular seed 904 | Regular seed 1904 | Regular seed 2904 | Hard seed 904 | Hard seed 1904 | All 40 seed 904 | All 40 seed 1904 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -34,7 +34,7 @@ The ONNX implementation of the all-wheel controller reproduced the scripted per-
 
 `train.py` exports the fallback before training and replaces it only after improving two independent 48-trial evaluations while maintaining at least 95% of its hard-terrain median. The default CPU budget is 6,600 seconds.
 
-For local reproduction, build `solutions/rover_best_v1` and run `python evaluate_onnx.py --policy artifacts/policy.onnx --runs 48 --seed 904`. Use `--biome-split 0` for all public biomes, or `--config python/mars_rover_env/configs/eval_hard.yaml` for a hard configuration. The platform uses separate hidden worlds, so no local score is guaranteed to transfer.
+For local reproduction, build `solutions/rover_best_v1` and run `python evaluate_onnx.py --policy artifacts/policy.onnx --runs 48 --seed 904`. Use `--biome-split 0` for all 40 local biomes, or `--config python/mars_rover_env/configs/eval_hard.yaml` for a hard configuration. The platform uses separate hidden worlds, so no local score is guaranteed to transfer.
 
 The experimental design follows the [original PPO paper](https://arxiv.org/abs/1707.06347) for clipped policy updates and the [Stable-Baselines3 RL tips](https://stable-baselines3.readthedocs.io/en/master/guide/rl_tips.html) on separate evaluation, repeated runs, and reward engineering. Reward shaping is kept modest because arbitrary extra rewards can change the optimal policy; see the [potential-based shaping result](https://ai.stanford.edu/~ang/papers/shaping-icml99.pdf).
 
@@ -61,15 +61,15 @@ The trainer now has an explicit `--extra-actions` switch and logs sampled macro 
 
 ## Dense obstacles and adverse weather holdouts
 
-The public default generates 68 craters and 30 steps along a 20 km sampled terrain. At seed 904 its starting terrain difficulty reports 0.285. This sparsity lets simple controls travel several hundred metres without meeting many generated obstacles. The old `difficulty_distance_offset` changes terrain difficulty but does not raise the separate biome-chain difficulty. We found that the opt-in `force_full_difficulty` flag had been parsed but never used by that biome difficulty calculation. The native simulator now applies it, and the holdout figures below were rerun after this fix.
+The local default generates 68 craters and 30 steps along a 20 km sampled terrain. At seed 904 its starting terrain difficulty reports 0.285. This sparsity lets simple controls travel several hundred metres without meeting many generated obstacles. The old `difficulty_distance_offset` changes terrain difficulty but does not raise the separate biome-chain difficulty. We found that the opt-in `force_full_difficulty` flag had been parsed but never used by that biome difficulty calculation. The native simulator now applies it, and the holdout figures below were rerun after this fix.
 
-The dense profile samples 3 km with 110 craters, 52 steps, 20 short biome zones, frequent terrain surprises, and all 40 public biomes. The weather profile samples 3 km with 96 craters and 45 steps, plus a persistent Wind/Ice/LowGravity mechanism stack, producing cold, slippery, gusty and low-gravity conditions. Both set terrain and biome difficulty to maximum from the start, keep the 5 m safe spawn surface, and retain the 300-second action/score protocol. They are deliberately harder local proxies; the hidden platform generator is not available.
+The dense profile samples 3 km with 110 craters, 52 steps, 20 short biome zones, frequent terrain surprises, and all 40 local biomes. The weather profile samples 3 km with 96 craters and 45 steps, plus a persistent Wind/Ice/LowGravity mechanism stack, producing cold, slippery, gusty and low-gravity conditions. Both set terrain and biome difficulty to maximum from the start, keep the 5 m safe spawn surface, and retain the 300-second action/score protocol. They are deliberately harder local proxies; the hidden platform generator is not available.
 
 The current deterministic ONNX gave the following medians (metres) on independent 48-trial, 300-second sets:
 
 | Local profile | Seed 904 | Seed 1904 | Seed 2904 |
 | --- | ---: | ---: | ---: |
-| Mixed public biomes | 427.4 | 361.9 | 311.5 |
+| Mixed local biomes | 427.4 | 361.9 | 311.5 |
 | Dense obstacles | 64.2 | 72.9 | 56.9 |
 | Weather stack | 57.1 | 58.2 | 56.7 |
 
@@ -81,7 +81,7 @@ The two YAML stress profiles are now held out from PPO training and remain separ
 
 The earlier training batch had only three static profile types: regular, dense and weather. The new batch has 12 simultaneous archetypes, each with changing terrain and biome seeds. At 64 environments, 32 are accessible, 24 are challenging and 8 are severe. The severe 12.5% receives dense obstacle fields or adverse stacked mechanics at full biome difficulty and elevated terrain difficulty; the other 87.5% preserves enough traversable distance for long-horizon progress learning. The two adversarial evaluation YAMLs are not used as training cohorts.
 
-The archetypes vary physical course length (3.5–6 km where explicitly set), craters (44–96), steps (18–43), biome transition length, terrain surprise rate, terrain and biome difficulty ramps, starting temperature/energy, and persistent sand/mud/ice/wind/low-gravity/crust layers. All 40 public biomes are eligible, and each reset samples new positions and mechanic parameters. The reference archetype retains the ordinary world configuration.
+The archetypes vary physical course length (3.5–6 km where explicitly set), craters (44–96), steps (18–43), biome transition length, terrain surprise rate, terrain and biome difficulty ramps, starting temperature/energy, and persistent sand/mud/ice/wind/low-gravity/crust layers. All 40 local biomes are eligible, and each reset samples new positions and mechanic parameters. The reference archetype retains the ordinary world configuration.
 
 A reproducible 24-trial local calibration of the existing deterministic controller gave accessible medians of 318–907 m, challenging medians of 219–541 m, and severe medians of 115–154 m. The deliberately adjusted sand/mud/wind profile scored 304 m; its former sand/wind version scored 846 m and was too easy for its intended tier. See `docs/rover_world_profiles_results.json` for every profile and `solutions/rover_best_v1/world_profiles_bench.py` to rerun it. The short 16-environment PPO smoke test reached 473,088 simulator frames in 20 s; it verifies throughput and integration, not a trained policy improvement.
 

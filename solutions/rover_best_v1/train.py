@@ -4,7 +4,8 @@ SOLUTION NAME: rover_best_v1
 
 Training mixes twenty-four terrain/weather archetypes across accessible,
 challenging and severe cohorts. The severe share is capped by default.
-Nonfixed worlds sample biome chains across the full 40-biome pool; fixed
+Nonfixed worlds sample biome chains across the 40 local biomes
+(20 original and 20 added training biomes); fixed
 worlds force the matching physical layer. The model receives the
 160-observation contract. Reward shaping below is
 applied to the training copy only; the exported policy is evaluated on the
@@ -424,7 +425,7 @@ def main():
     if env.obs_dim != 160 or len(ACTION_MACROS) != 31:
         raise RuntimeError("The evaluator observation/action contract changed")
     eval_config = load_env_config(args.config or None)
-    eval_config.biome_split = 0  # hold out mixed worlds from the full public biome bank
+    eval_config.biome_split = 0  # hold out mixed worlds from the full local biome bank
     eval_env = MarsRoverVecEnv(args.eval_envs, config_override=eval_config)
     validation_env = MarsRoverVecEnv(args.eval_envs, config_override=eval_config)
     eval_macro = np.asarray(ACTION_MACROS, dtype=np.int32)
