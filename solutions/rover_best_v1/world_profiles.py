@@ -1,7 +1,7 @@
 """Balanced, reproducible terrain and mechanic profiles for PPO training.
 
 Each profile is a *distribution*: reset seeds still change crater positions,
-biome order, terrain phases and mechanic parameters. The two eval_stress YAMLs
+biome order, terrain phases and mechanic parameters. The eval_stress YAMLs
 are kept outside this training mixture as local holdouts.
 """
 from __future__ import annotations
