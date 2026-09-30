@@ -1,0 +1,175 @@
+{
+  "runs_per_profile": 24,
+  "seed": 128000,
+  "action_policy": "rule_policy",
+  "profiles": [
+    {
+      "name": "reference",
+      "tier": "accessible",
+      "train_envs_of_64": 7,
+      "median_m": 483.2,
+      "mean_m": 470.1
+    },
+    {
+      "name": "rolling_hills",
+      "tier": "accessible",
+      "train_envs_of_64": 5,
+      "median_m": 863.3,
+      "mean_m": 832.3
+    },
+    {
+      "name": "short_biomes",
+      "tier": "accessible",
+      "train_envs_of_64": 4,
+      "median_m": 490.8,
+      "mean_m": 514.7
+    },
+    {
+      "name": "sparse_ridges",
+      "tier": "accessible",
+      "train_envs_of_64": 4,
+      "median_m": 607.6,
+      "mean_m": 629.8
+    },
+    {
+      "name": "cool_low_energy",
+      "tier": "accessible",
+      "train_envs_of_64": 3,
+      "median_m": 596.2,
+      "mean_m": 681.9
+    },
+    {
+      "name": "gentle_dunes",
+      "tier": "accessible",
+      "train_envs_of_64": 3,
+      "median_m": 1223.0,
+      "mean_m": 1222.1
+    },
+    {
+      "name": "shallow_frost",
+      "tier": "accessible",
+      "train_envs_of_64": 3,
+      "median_m": 1220.1,
+      "mean_m": 1218.9
+    },
+    {
+      "name": "morning_crosswind",
+      "tier": "accessible",
+      "train_envs_of_64": 3,
+      "median_m": 1223.7,
+      "mean_m": 1222.4
+    },
+    {
+      "name": "broken_plain",
+      "tier": "challenging",
+      "train_envs_of_64": 3,
+      "median_m": 641.5,
+      "mean_m": 590.9
+    },
+    {
+      "name": "sand_mud_wind",
+      "tier": "challenging",
+      "train_envs_of_64": 3,
+      "median_m": 335.6,
+      "mean_m": 323.9
+    },
+    {
+      "name": "ice_crosswind",
+      "tier": "challenging",
+      "train_envs_of_64": 3,
+      "median_m": 171.0,
+      "mean_m": 182.6
+    },
+    {
+      "name": "viscous_mud",
+      "tier": "challenging",
+      "train_envs_of_64": 3,
+      "median_m": 575.2,
+      "mean_m": 509.1
+    },
+    {
+      "name": "low_gravity_gaps",
+      "tier": "challenging",
+      "train_envs_of_64": 2,
+      "median_m": 607.5,
+      "mean_m": 608.3
+    },
+    {
+      "name": "soft_swamp",
+      "tier": "challenging",
+      "train_envs_of_64": 2,
+      "median_m": 1150.1,
+      "mean_m": 1126.1
+    },
+    {
+      "name": "muddy_crosswind",
+      "tier": "challenging",
+      "train_envs_of_64": 2,
+      "median_m": 211.2,
+      "mean_m": 207.7
+    },
+    {
+      "name": "dry_heat",
+      "tier": "challenging",
+      "train_envs_of_64": 2,
+      "median_m": 690.1,
+      "mean_m": 640.1
+    },
+    {
+      "name": "water_basin",
+      "tier": "challenging",
+      "train_envs_of_64": 2,
+      "median_m": 235.4,
+      "mean_m": 234.9
+    },
+    {
+      "name": "ice_ridge",
+      "tier": "challenging",
+      "train_envs_of_64": 1,
+      "median_m": 1096.7,
+      "mean_m": 1060.6
+    },
+    {
+      "name": "gust_corridor",
+      "tier": "challenging",
+      "train_envs_of_64": 1,
+      "median_m": 1170.1,
+      "mean_m": 1126.7
+    },
+    {
+      "name": "dense_ridges",
+      "tier": "severe",
+      "train_envs_of_64": 2,
+      "median_m": 147.5,
+      "mean_m": 166.2
+    },
+    {
+      "name": "storm_crust",
+      "tier": "severe",
+      "train_envs_of_64": 2,
+      "median_m": 91.9,
+      "mean_m": 125.8
+    },
+    {
+      "name": "deep_water",
+      "tier": "severe",
+      "train_envs_of_64": 2,
+      "median_m": 217.5,
+      "mean_m": 199.8
+    },
+    {
+      "name": "sucking_bog",
+      "tier": "severe",
+      "train_envs_of_64": 1,
+      "median_m": 605.4,
+      "mean_m": 522.2
+    },
+    {
+      "name": "thermal_marsh",
+      "tier": "severe",
+      "train_envs_of_64": 1,
+      "median_m": 223.0,
+      "mean_m": 215.0
+    }
+  ]
+}

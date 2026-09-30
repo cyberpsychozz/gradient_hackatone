@@ -78,6 +78,7 @@ void Env::update_world_latents() {
 }
 
 float Env::course_difficulty(float x) const {
+  if (config_.force_full_difficulty) return 1.0f;
   const float course_length = std::max(1.0f, config_.terrain.length);
   const float progress = clamp(x / course_length, 0.0f, 1.0f);
   if (progress <= difficulty_safe_fraction_) return 0.0f;
