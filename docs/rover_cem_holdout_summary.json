@@ -1,0 +1,67 @@
+{
+  "baseline": "solutions/rover_best_v1/artifacts/policy.onnx",
+  "candidates": {
+    "solutions/rover_best_v1/artifacts/cem_rule/policy.onnx": {
+      "runs": 336,
+      "mean_difference_m": 6.14,
+      "median_difference_m": 0.01,
+      "mean_95pct_ci_m": [
+        -6.01,
+        18.32
+      ],
+      "wins": 110,
+      "losses": 58,
+      "by_profile": {
+        "mixed": {
+          "runs": 48,
+          "mean_difference_m": -9.66,
+          "median_difference_m": 0.0,
+          "wins": 8,
+          "losses": 7
+        },
+        "dense": {
+          "runs": 48,
+          "mean_difference_m": -0.31,
+          "median_difference_m": -0.0,
+          "wins": 14,
+          "losses": 11
+        },
+        "weather": {
+          "runs": 48,
+          "mean_difference_m": 0.36,
+          "median_difference_m": -0.02,
+          "wins": 5,
+          "losses": 7
+        },
+        "soft_swamp": {
+          "runs": 48,
+          "mean_difference_m": 19.8,
+          "median_difference_m": 1.08,
+          "wins": 33,
+          "losses": 5
+        },
+        "dry_heat": {
+          "runs": 48,
+          "mean_difference_m": 40.41,
+          "median_difference_m": -2.87,
+          "wins": 23,
+          "losses": 25
+        },
+        "water_basin": {
+          "runs": 48,
+          "mean_difference_m": 4.82,
+          "median_difference_m": 0.0,
+          "wins": 8,
+          "losses": 2
+        },
+        "shallow_frost": {
+          "runs": 48,
+          "mean_difference_m": -12.46,
+          "median_difference_m": 0.37,
+          "wins": 19,
+          "losses": 1
+        }
+      }
+    }
+  }
+}

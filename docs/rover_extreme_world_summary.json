@@ -1,0 +1,87 @@
+{
+  "baseline": "solutions/rover_best_v1/artifacts/policy.onnx",
+  "candidates": {
+    "solutions/rover_best_v1/artifacts/long_context/policy.onnx": {
+      "runs": 384,
+      "mean_difference_m": 60.01,
+      "median_difference_m": 0.03,
+      "mean_95pct_ci_m": [
+        46.43,
+        74.05
+      ],
+      "wins": 160,
+      "losses": 55,
+      "by_profile": {
+        "storm_crust": {
+          "runs": 96,
+          "mean_difference_m": 29.87,
+          "median_difference_m": 0.14,
+          "wins": 43,
+          "losses": 8
+        },
+        "deep_water": {
+          "runs": 96,
+          "mean_difference_m": -6.28,
+          "median_difference_m": 0.0,
+          "wins": 8,
+          "losses": 34
+        },
+        "ice_crosswind": {
+          "runs": 96,
+          "mean_difference_m": 188.35,
+          "median_difference_m": 104.95,
+          "wins": 72,
+          "losses": 0
+        },
+        "sucking_bog": {
+          "runs": 96,
+          "mean_difference_m": 28.11,
+          "median_difference_m": 0.03,
+          "wins": 37,
+          "losses": 13
+        }
+      }
+    },
+    "solutions/rover_best_v1/artifacts/long_separate/policy.onnx": {
+      "runs": 384,
+      "mean_difference_m": 14.77,
+      "median_difference_m": 0.0,
+      "mean_95pct_ci_m": [
+        11.06,
+        18.68
+      ],
+      "wins": 115,
+      "losses": 45,
+      "by_profile": {
+        "storm_crust": {
+          "runs": 96,
+          "mean_difference_m": 26.51,
+          "median_difference_m": 0.0,
+          "wins": 29,
+          "losses": 2
+        },
+        "deep_water": {
+          "runs": 96,
+          "mean_difference_m": -10.08,
+          "median_difference_m": 0.0,
+          "wins": 11,
+          "losses": 33
+        },
+        "ice_crosswind": {
+          "runs": 96,
+          "mean_difference_m": 42.67,
+          "median_difference_m": 26.42,
+          "wins": 75,
+          "losses": 10
+        },
+        "sucking_bog": {
+          "runs": 96,
+          "mean_difference_m": 0.0,
+          "median_difference_m": 0.0,
+          "wins": 0,
+          "losses": 0
+        }
+      }
+    }
+  }
+}

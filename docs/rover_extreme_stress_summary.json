@@ -1,0 +1,59 @@
+{
+  "baseline": "solutions/rover_best_v1/artifacts/policy.onnx",
+  "candidates": {
+    "solutions/rover_best_v1/artifacts/long_context/policy.onnx": {
+      "runs": 576,
+      "mean_difference_m": 21.17,
+      "median_difference_m": 0.24,
+      "mean_95pct_ci_m": [
+        16.14,
+        26.61
+      ],
+      "wins": 266,
+      "losses": 85,
+      "by_profile": {
+        "dense": {
+          "runs": 288,
+          "mean_difference_m": 6.0,
+          "median_difference_m": 0.0,
+          "wins": 90,
+          "losses": 60
+        },
+        "weather": {
+          "runs": 288,
+          "mean_difference_m": 36.34,
+          "median_difference_m": 5.15,
+          "wins": 176,
+          "losses": 25
+        }
+      }
+    },
+    "solutions/rover_best_v1/artifacts/long_separate/policy.onnx": {
+      "runs": 576,
+      "mean_difference_m": 18.8,
+      "median_difference_m": 0.0,
+      "mean_95pct_ci_m": [
+        15.88,
+        21.74
+      ],
+      "wins": 219,
+      "losses": 27,
+      "by_profile": {
+        "dense": {
+          "runs": 288,
+          "mean_difference_m": 8.74,
+          "median_difference_m": 0.0,
+          "wins": 49,
+          "losses": 8
+        },
+        "weather": {
+          "runs": 288,
+          "mean_difference_m": 28.86,
+          "median_difference_m": 8.8,
+          "wins": 170,
+          "losses": 19
+        }
+      }
+    }
+  }
+}
