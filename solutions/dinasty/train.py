@@ -143,6 +143,19 @@ def collect(env, policy, state, cfg, device, rng):
             if done.all():
                 break
 
+        # Behavior-clone shaping: the deterministic rule controller's edge on
+        # the platform is pitch correction (tilt to keep the body level).
+        # Reward the policy for matching its action: 11 (gas+tilt right) when
+        # the body tilts right, 10 when it tilts left, gas otherwise.
+        if cfg.clone_coef > 0.0:
+            angle = torch.from_numpy(state["obs"][:, 4].copy()).to(device)
+            fallback_action = torch.where(
+                angle > 0.1, torch.full_like(angle, 11.0),
+                torch.where(angle < -0.1, torch.full_like(angle, 10.0),
+                            torch.full_like(angle, 1.0)))
+            match = (action.float() == fallback_action).float()
+            rewards = rewards + cfg.clone_coef * match.cpu().numpy()
+
         state["steps"] += frame_counts
         trial_start = np.zeros(cfg.num_envs, dtype=np.float32)
         for i in np.flatnonzero(done):
@@ -379,6 +392,7 @@ def main():
         frame_skip=args.frame_skip, epochs=args.epochs, envs_per_batch=32,
         gamma=0.995, gae_lambda=0.95, clip=0.2, value_coef=0.5,
         entropy_coef=0.02, max_grad_norm=0.5,
+        clone_coef=0.06,
     )
     start = time.monotonic()
     frames = 0
