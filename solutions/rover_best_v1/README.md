@@ -32,7 +32,13 @@ The local median is a proxy: the platform uses a separate simulator build and hi
 
 ## Hard-world evaluation
 
-The source package includes `eval_stress_dense.yaml` and `eval_stress_weather.yaml`. The first concentrates craters, steps, biome transitions and unexpected terrain in the first 3 km. The second also overlays wind, ice and low gravity and generates cold conditions. Both keep the normal rover controls and 300-second trial budget. They are adversarial local holdouts, not copies of the organizer's hidden worlds.
+The source package includes `eval_stress_dense.yaml`, `eval_stress_weather.yaml`
+and `eval_stress_ultra.yaml`. The first concentrates craters, steps, biome
+transitions and unexpected terrain in the first 3 km. The second also overlays
+wind, ice and low gravity and generates cold conditions. The ultra profile
+combines both: 130 craters, 60 steps, a Wind/Ice/LowGravity/Mud stack and full
+difficulty from the start. They are adversarial local holdouts, not copies of
+the organizer's hidden worlds.
 
 From the repository root, after installing the package and ONNX Runtime:
 

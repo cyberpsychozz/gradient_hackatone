@@ -333,6 +333,8 @@ def main():
                         help="Dense-obstacle holdout config (defaults to bundled stress profile).")
     parser.add_argument("--eval-weather-config", type=str, default="",
                         help="Weather-stack holdout config (defaults to bundled stress profile).")
+    parser.add_argument("--eval-ultra-config", type=str, default="",
+                        help="Ultra holdout config (dense + weather; defaults to bundled stress profile).")
     default_output = Path("/output/policy.onnx") if Path("/output").is_dir() else (
         Path(__file__).resolve().parent / "artifacts" / "policy.onnx"
     )
@@ -371,6 +373,10 @@ def main():
         candidate = config_dir / "eval_stress_weather.yaml"
         if candidate.exists():
             args.eval_weather_config = str(candidate)
+    if not args.eval_ultra_config:
+        candidate = config_dir / "eval_stress_ultra.yaml"
+        if candidate.exists():
+            args.eval_ultra_config = str(candidate)
 
     torch.set_num_threads(int(os.environ.get("OMP_NUM_THREADS", "4")))
     np.random.seed(args.seed)
@@ -389,7 +395,8 @@ def main():
 
     stress_total = min(args.num_envs - 1,
                        round(args.num_envs * args.stress_train_fraction))
-    available_stress = [path for path in (args.eval_hard_config, args.eval_weather_config)
+    available_stress = [path for path in (args.eval_hard_config, args.eval_weather_config,
+                                          args.eval_ultra_config)
                         if path]
     if not available_stress:
         stress_total = 0
@@ -423,6 +430,11 @@ def main():
         weather_env = MarsRoverVecEnv(
             max(8, args.eval_envs), config_path=args.eval_weather_config)
         print(f"weather stress eval env: {args.eval_weather_config}", flush=True)
+    ultra_env = None
+    if args.eval_ultra_config:
+        ultra_env = MarsRoverVecEnv(
+            max(8, args.eval_envs), config_path=args.eval_ultra_config)
+        print(f"ultra stress eval env: {args.eval_ultra_config}", flush=True)
     policy = Policy(env.obs_dim, len(ACTION_MACROS), args.hidden_size,
                     extra_actions=extra_actions,
                     extra_logit_bias=args.extra_logit_bias).to(device)
@@ -465,13 +477,18 @@ def main():
     rule_weather = (quick_eval(rule_policy, weather_env, eval_macro,
                                args.seed + 400_000, device, rule_policy.hidden_size)
                     if weather_env is not None else None)
+    rule_ultra = (quick_eval(rule_policy, ultra_env, eval_macro,
+                             args.seed + 500_000, device, rule_policy.hidden_size)
+                  if ultra_env is not None else None)
     hard_floor = rule_hard["median"] * 0.95 if rule_hard else 0.0
     weather_floor = rule_weather["median"] * 0.95 if rule_weather else 0.0
+    ultra_floor = rule_ultra["median"] * 0.95 if rule_ultra else 0.0
     best_median = min(rule_stats["median"], rule_validation["median"])
     print(f"rule baseline: mixed_eval={rule_stats['median']:.1f}m "
           f"mixed_validation={rule_validation['median']:.1f}m "
           f"dense={(rule_hard or {}).get('median', float('nan')):.1f}m "
-          f"weather={(rule_weather or {}).get('median', float('nan')):.1f}m",
+          f"weather={(rule_weather or {}).get('median', float('nan')):.1f}m "
+          f"ultra={(rule_ultra or {}).get('median', float('nan')):.1f}m",
           flush=True)
     best_state = None
     best_frames = 0
@@ -557,8 +574,20 @@ def main():
                         hard_line += f" weather_median={weather_stats['median']:.1f}m"
                     except Exception as exc:
                         hard_line += f" (weather eval failed: {exc})"
+                ultra_acceptable = ultra_env is None
+                if ultra_env is not None:
+                    try:
+                        ultra_stats = quick_eval(
+                            policy, ultra_env, eval_macro, args.seed + 500_000,
+                            device, args.hidden_size,
+                        )
+                        stats["ultra_median"] = round(ultra_stats["median"], 1)
+                        ultra_acceptable = ultra_stats["median"] >= ultra_floor
+                        hard_line += f" ultra_median={ultra_stats['median']:.1f}m"
+                    except Exception as exc:
+                        hard_line += f" (ultra eval failed: {exc})"
                 diagnostics.append(stats)
-                if selection_median > best_median and hard_acceptable and weather_acceptable:
+                if selection_median > best_median and hard_acceptable and weather_acceptable and ultra_acceptable:
                     best_median = selection_median
                     best_frames = frames
                     best_state = copy.deepcopy(
