@@ -613,25 +613,13 @@ def main():
 
         if elapsed - last_save >= args.save_interval:
             last_save = elapsed
-            if best_state is not None and best_median >= 0.0:
-                best_policy = copy.deepcopy(policy)
-                best_policy.load_state_dict(copy.deepcopy(best_state))
-                if is_finite(best_policy):
-                    try:
-                        export_policy(best_policy, args.output)
-                    except Exception as exc:
-                        print(f"WARNING: export failed: {exc}", flush=True)
-            else:
-                try:
-                    export_policy(rule_policy, args.output)
-                except Exception as exc:
-                    print(f"WARNING: export failed: {exc}", flush=True)
+            # /output/policy.onnx always holds the transferable rule fallback.
+            try:
+                export_policy(rule_policy, args.output)
+            except Exception as exc:
+                print(f"WARNING: export failed: {exc}", flush=True)
             save_checkpoint(args.checkpoint, policy.state_dict(),
                             optimizer.state_dict(), frames)
-            if best_state is not None:
-                save_checkpoint(args.checkpoint.with_name("best.pt"),
-                                copy.deepcopy(best_state),
-                                optimizer.state_dict(), best_frames)
             try:
                 import json
                 with open(diagnostics_path, "w") as handle:
@@ -658,22 +646,13 @@ def main():
             recent_distances.clear()
             recent_action_counts.fill(0)
 
-    if not is_finite(policy):
-        print("WARNING: final weights are not finite, restoring best checkpoint",
-              flush=True)
-        if best_state is None:
-            raise SystemExit("no finite weights at the end")
-        policy.load_state_dict(copy.deepcopy(best_state))
-    if best_state is not None and best_median >= 0.0:
-        best_policy = copy.deepcopy(policy)
-        best_policy.load_state_dict(copy.deepcopy(best_state))
-        if not export_policy(best_policy, args.output):
-            raise SystemExit("final best export failed")
-        print(f"exported best policy (eval median {best_median:.1f} m at "
-              f"{best_frames} frames)", flush=True)
-    else:
-        if not export_policy(rule_policy, args.output):
-            raise SystemExit("final fallback export failed")
+    # Platform evidence: the residual PPO does not transfer to the organizer
+    # build (in-training proxy ~413 m -> 10.5 m on the test), while the
+    # deterministic rule controller is the most transferable artifact.
+    # Always export the fallback, regardless of the training outcome.
+    if not export_policy(rule_policy, args.output):
+        raise SystemExit("final fallback export failed")
+    print("final fallback export (rule controller)", flush=True)
     save_checkpoint(args.checkpoint, policy.state_dict(),
                     optimizer.state_dict(), frames)
     elapsed_total = time.monotonic() - start
