@@ -382,7 +382,9 @@ def main():
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     rng = np.random.default_rng(args.seed)
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device.type == "cuda":
+        print(f"GPU: {torch.cuda.get_device_name(0)}", flush=True)
 
     def training_config(path):
         config = load_env_config(path or None)
