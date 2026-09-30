@@ -382,9 +382,9 @@ def main():
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     rng = np.random.default_rng(args.seed)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if device.type == "cuda":
-        print(f"GPU: {torch.cuda.get_device_name(0)}", flush=True)
+    # The policy is a tiny recurrent net: GPU transfers cost more than they
+    # save, CPU training measures faster for this workload.
+    device = torch.device("cpu")
 
     def training_config(path):
         config = load_env_config(path or None)
